@@ -1,0 +1,11 @@
+[Unit]
+Description = Powkiddy X55 joystick mapper service
+After = network.target network-online.target
+Wants = network-online.target
+
+[Service]
+ExecStart = /bin/sh -c 'powkiddy-mapper -p /dev/input/event1 -p /dev/input/event3 -e | remotepad-server'
+Restart = on-abort
+
+[Install]
+WantedBy = multi-user.target

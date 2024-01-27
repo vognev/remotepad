@@ -55,10 +55,12 @@ async def do_forward_device(device, options):
 
 		if mouseemu and event.type == ecodes.EV_KEY and event.code == ecodes.BTN_TL:
 			print(json.dumps([1, ecodes.EV_KEY, ecodes.BTN_LEFT, event.value]))
+			print(json.dumps([1, ecodes.EV_SYN, ecodes.EV_SYN, 0]))
 			continue
 
 		if mouseemu and event.type == ecodes.EV_KEY and event.code == ecodes.BTN_TR:
 			print(json.dumps([1, ecodes.EV_KEY, ecodes.BTN_RIGHT, event.value]))
+			print(json.dumps([1, ecodes.EV_SYN, ecodes.EV_SYN, 0]))
 			continue
 
 		if mouseemu and event.type == ecodes.EV_ABS and event.code == ecodes.ABS_RY:

@@ -15,6 +15,11 @@ for device_json in devices_json:
 
 		if etype is ecodes.EV_KEY:
 			capabilities[etype] = caps
+		elif etype is ecodes.EV_REL:
+			rels = []
+			for cap in caps:
+				rels.append((cap[0], evdev.AbsInfo(**cap[1])))
+			capabilities[etype] = rels
 		elif etype is ecodes.EV_ABS:
 			abses = []
 			for cap in caps:
@@ -33,3 +38,6 @@ print('Device created')
 while True:
 	event = json.loads(input())
 	devices[event[0]].write(event[1], event[2], event[3])
+
+# vim: noexpandtab ts=4 sw=4
+

@@ -1,0 +1,6 @@
+# Powkiddy X55 EmuMouse
+evdev:name:*Powkiddy X55 EmuMouse*
+ ID_INPUT=1
+ ID_INPUT_MOUSE=1
+ POWKIDDY_EMUMOUSE=1
+

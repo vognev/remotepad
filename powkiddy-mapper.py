@@ -4,11 +4,70 @@ import argparse
 import asyncio
 import evdev
 import json
+import sys
 
 from evdev import ecodes, categorize, AbsInfo
 
+mousetrig = None
+mouseemu = False
+mousex = 0
+mousey = 0
+
+async def do_mouseemu():
+	global mouseemu
+	global mousex
+	global mousey
+
+	while True:
+		if mouseemu:
+			await asyncio.sleep(0.005)
+			if (mousex != 0 or mousey != 0):
+				if mousex != 0:
+					print(json.dumps([1, ecodes.EV_REL, ecodes.REL_X, mousex]))
+				if mousey != 0:
+					print(json.dumps([1, ecodes.EV_REL, ecodes.REL_Y, mousey]))
+		else:
+			await asyncio.sleep(0.05)
+
 async def do_forward_device(device, options):
+	global mousetrig
+	global mouseemu
+	global mousex
+	global mousey
+
 	async for event in device.async_read_loop():
+		if mousetrig is None and (event.code == ecodes.BTN_SELECT or event.code == ecodes.BTN_START):
+			mousetrig = event.code
+			mouseemu = True
+			mousex = 0
+			mousey = 0
+
+		if mousetrig and event.code == mousetrig and 0 == event.value:
+			mousetrig = None
+			mouseemu = False
+
+		if mouseemu and event.type == ecodes.EV_ABS and event.code == ecodes.ABS_RX:
+			if abs(event.value - 512) >= 32:
+				mousex = int((event.value - 512) * 3 / 512)
+			else:
+				mousex = 0
+			continue
+
+		if mouseemu and event.type == ecodes.EV_KEY and event.code == ecodes.BTN_TL:
+			print(json.dumps([1, ecodes.EV_KEY, ecodes.BTN_LEFT, event.value]))
+			continue
+
+		if mouseemu and event.type == ecodes.EV_KEY and event.code == ecodes.BTN_TR:
+			print(json.dumps([1, ecodes.EV_KEY, ecodes.BTN_RIGHT, event.value]))
+			continue
+
+		if mouseemu and event.type == ecodes.EV_ABS and event.code == ecodes.ABS_RY:
+			if abs(event.value - 512) >= 32:
+				mousey =int((event.value - 512) * 3 / 512)
+			else:
+				mousey = 0
+			continue
+
 		if options['map_dpad_x_to_hat'] and event.type == ecodes.EV_KEY and event.code == ecodes.BTN_DPAD_LEFT:
 			print(json.dumps([0, ecodes.EV_ABS, ecodes.ABS_HAT0X, [0, -1][event.value]]))
 		elif options['map_dpad_x_to_hat'] and event.type == ecodes.EV_KEY and event.code == ecodes.BTN_DPAD_RIGHT:
@@ -64,7 +123,7 @@ async def run_forward():
 		for path in evdev.list_devices():
 			device = evdev.InputDevice(path)
 			devices_by_name[device.name] = device
-	
+
 	devices = []
 	for path in args.device_by_path:
 		devices.append(evdev.InputDevice(path))
@@ -110,17 +169,36 @@ async def run_forward():
 		'map_dpad_y_to_hat': map_dpad_y_to_hat
 	}
 
+	mousecaps = {};
+	mousecaps[ecodes.EV_KEY] = [ecodes.BTN_LEFT, ecodes.BTN_RIGHT];
+
+	mousecaps[ecodes.EV_REL] = []
+	mousecaps[ecodes.EV_REL].append((
+		ecodes.REL_X,
+		evdev.AbsInfo(value=0, min=-4, max=4, fuzz=0, flat=0, resolution=0)._asdict()
+	))
+	mousecaps[ecodes.EV_REL].append((
+		ecodes.REL_Y,
+		evdev.AbsInfo(value=0, min=-4, max=4, fuzz=0, flat=0, resolution=1)._asdict()
+	))
+
 	print(json.dumps([{
-		'name': 'Powkiddy X55',
+		'name': 'Powkiddy X55 Combined Gamepad',
 		'capabilities': capabilities,
 		'vendor': 0,
+		'product': 0
+	}, {
+		'name': 'Powkiddy X55 EmuMouse',
+		'capabilities': mousecaps,
+		'vendor':  0,
 		'product': 0
 	}]))
 
 	tasks = []
 	for i, device in enumerate(devices):
 		tasks.append(asyncio.create_task(forward_device(device, options)))
-	
+		tasks.append(asyncio.create_task(do_mouseemu()))
+
 	await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
 
 async def list_devices():
@@ -142,3 +220,6 @@ try:
 	asyncio.run(args.action())
 except KeyboardInterrupt:
 	pass
+
+# vim: noexpandtab ts=4 sw=4
+
